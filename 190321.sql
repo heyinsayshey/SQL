@@ -626,6 +626,7 @@ group by grade
 order by grade desc
 
 -- 문제 3 : score 테이블에서 국어점수 합계, 국어평균, 영어점수합계, 영어평균, 수학점수합계, 수학평균, 전체 총점, 전체 평균을 출력하기.
+-- avg((kor+eng+math)/3) : 그룹의 전체 평균을 구한 것이므로 개인 과목별 평균을 구하기 위해서는 3을 한번 더 나눠준다. 
 select sum(kor), avg(kor), sum(eng), avg(eng), sum(math), avg(math), sum(kor+eng+math), avg((kor+eng+math)/3) 
 from score
 
@@ -665,19 +666,30 @@ from emp
     인정여부는 평균이 60이상이면 PASS로 미만이면 FAIL로 출력한다.                   
    으로 출력한다.
 
-select studno, kor, eng, math, if(avg((kor+eng+math)/3)>=95, 'A+',
-										 if(avg((kor+eng+math)/3)>=90, 'A0',
-										 if(avg((kor+eng+math)/3)>=85, 'B+',
-										 if(avg((kor+eng+math)/3)>=80, 'B0',
-										 if(avg((kor+eng+math)/3)>=75, 'C+',
-										 if(avg((kor+eng+math)/3)>=70, 'C0',		
-										 if(avg((kor+eng+math)/3)>=65, 'D+',	
-										 if(avg((kor+eng+math)/3)>=60, 'D0',	'')))))))
-										) 학점,
+select studno, kor, eng, math, if((kor+eng+math)/3>=95, 'A+',
+										 if((kor+eng+math)/3>=90, 'A0',
+										 if((kor+eng+math)/3>=85, 'B+',
+										 if((kor+eng+math)/3>=80, 'B0',
+										 if((kor+eng+math)/3>=75, 'C+',
+										 if((kor+eng+math)/3>=70, 'C0',		
+										 if((kor+eng+math)/3>=65, 'D+',	
+										 if((kor+eng+math)/3>=60, 'D0',	''))))))))
+										 학점,
 										 
-										 if(avg(kor+eng+math)>=60, 'PASS', 'FAIL') 인정여부 
+										 if((kor+eng+math)/3>=60, 'PASS', 'FAIL') 인정여부 
 from score
-group by studno
+
+select studno, kor, eng, math, case when (kor+eng+math)/3>=95 then 'A+'
+                                    when (kor+eng+math)/3>=90 then 'A0'
+                                    when (kor+eng+math)/3>=85 then 'B+'
+                                    when (kor+eng+math)/3>=80 then 'B0'
+                                    when (kor+eng+math)/3>=75 then 'C+'
+                                    when (kor+eng+math)/3>=70 then 'C0'
+                                    when (kor+eng+math)/3>=65 then 'D+'
+                                    when (kor+eng+math)/3>=60 then 'D0'
+                                    else 'F' end 학점
+from score
+
 
 
 3. 학생을 3개 팀으로 분류하기 위해 학번을 3으로 나누어  나머지가 0이면 'A팀', 1이면 'B팀', 2이면 'C팀'으로 
