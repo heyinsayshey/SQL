@@ -687,7 +687,8 @@ select studno, kor, eng, math, case when (kor+eng+math)/3>=95 then 'A+'
                                     when (kor+eng+math)/3>=70 then 'C0'
                                     when (kor+eng+math)/3>=65 then 'D+'
                                     when (kor+eng+math)/3>=60 then 'D0'
-                                    else 'F' end 학점
+                                    else 'F' end 학점,
+                               if((kor+eng+math)/3>=60, 'PASS', 'FAIL') 인정여부 
 from score
 
 
@@ -695,7 +696,7 @@ from score
 3. 학생을 3개 팀으로 분류하기 위해 학번을 3으로 나누어  나머지가 0이면 'A팀', 1이면 'B팀', 2이면 'C팀'으로 
     분류하여 학생 번호, 이름, 학과 번호, 팀 이름을 출력하여라
 
-select studno, name, major1, case mod(major1,3) when 0 then 'A팀'
+select studno, name, major1, case mod(studno,3) when 0 then 'A팀'
 																when 1 then 'B팀'
 																when 2 then 'C팀'
 																end 팀이름
@@ -741,4 +742,446 @@ group by job
 select if(substr(jumin,7,1)=1,'남자','여자') 성별, round(avg(height),2) 평균키, round(avg(weight),2) 평균몸무게
 from student
 group by  성별
+
+-- *****************************************190325 정리****************************************************
+/*
+	날짜의 이전, 이후 :  date_add , date_sub
+	날짜를 문자열로 변환 : date_format (오라클 :  to_char)
+	문자열 날짜로 변환 : str_to_date (오라클 : to_date)
+	- 형식 지정문자 : %Y, %m, %d, %h, %H....
+	
+	<기타함수>
+	- ifnull : null인 경우 기본값으로 변환.(오라클 : nvl 함수)
+	- if 구문  : if(조건, 참, 거짓)   (오라클 : dcode)
+	- case when 구문 : 
+							1.	case 컬럼 when 값 then 문자 ...
+								else 문자 end
+							2. case when 조건 then 문자..
+								else 문자 end
+	<그룹함수>
+	- 건수 : count.  null값인 경우 제외.
+	- 합계 : sum. 
+	- 평균 : avg
+	
+	<select 구문 완성>
+	select  컬럼명|*
+	from 테이블명|뷰명
+	where 조건문 => 레코드 선택 조건. where 구문이 없으면 모든 레코드가 선택
+	group by 컬럼명 => 그룹함수의 그룹의 기준 컬럼
+	having 조건문 => 그룹의 조건
+	order by 컬럼명 
+	
+*/
+
+
+-- 최대값, 최소값 : max, min
+-- 학생 중 전공1별 가장 키가 큰 학생과 작은 학생, 평균 키 출력하기
+select major1, max(height), min(height), avg(height)
+from student
+group by 1
+
+-- 교수의 급여와 보너스 합계가 가장 큰 값과 가장 작은 값, 평균금액을 출력하기. 단, 보너스가 없는 경우 0으로 출력한다.
+select max(salary+ifnull(bonus,0)) 최대금액, min(salary+ifnull(bonus,0)) 최소금액, avg(salary+ifnull(bonus,0)) 평균금액
+from professor
+
+
+-- 표준편차 : stddev
+-- 분산 : variance
+
+-- 학생의 국어, 영어, 수학 점수의 각각의 표준편차와 분산을 출력하기.
+select stddev(kor) 국어표준편차, stddev(eng) 영어표준편차 , stddev(math) 수학표준편차 , 
+			variance(kor) 국어분산, variance(eng) 영어분산 , variance(math) 수학분산 
+from score
+
+
+-- 문제1 : 주민번호 기준 남학생, 여학생의 최대키, 최소키, 평균키 출력하기
+select if(substr(jumin,7,1)=1,'남학생','여학생') 성별,  max(height), min(height), avg(height)
+from student
+group by 1
+
+-- 문제2 : birthday 기준으로 월별 태어난 인원수를 출력라기
+select month(birthday) '태어난 월', count(*) 인원수
+from student
+group by 1
+
+-- 문제3 : 전공1별 키가 가장 큰 키와 작은 키, 평균 키를 출력하기. 단, 평균키가 170 이상인 전공1학과만 출력하기
+select major1, max(height), min(height), avg(height)
+from student
+group by major1
+having avg(height)>=170
+
+-- 문제 4 : 교수의 학과별 평균급여가 300 이상인 학과의 학솨코드와 평균급여, 인원수 출력하기
+select deptno, avg(salary), count(*)
+from professor
+group by deptno
+having avg(salary) >= 300
+
+-- 문제 5 : 교수의 직책별 교수의 인원수를 출력하기. 단, 인원수가 2명 이상인 직책만 출력하기
+select position, count(*)
+from professor
+group by position
+having count(*)>=2
+
+-- 문제 6 : 전화번호의 지역번호가 02 : 서울 , 051 : 부산, 052 : 울산, 053 : 대구, 055: 경남 지역의 학생수를 지역별로 출력하기.
+-- 단, 학생수가 3명 이상인 지역만 출력하기.
+select case left(tel, instr(tel,')')-1) when 02 then '서울'
+														when 051 then '부산'
+														when 052 then '울산'
+														when 053 then '대구'
+														when 055 then '경남' 
+														end 지역번호, 
+														count(*) 학생수
+from student
+group by 1 -- 또는 지역번호 써도 됨.
+having count(*)>=3 and 지역번호 is not null
+
+
+-- 학생의 학년의 전공별, 인원수를 조회하기.
+select grade, major1, count(*)
+from student
+group by grade,major1
+
+
+-- 순위 지정 함수: rank over
+
+-- 교수들의 번호, 이름, 급여, 급여순위 출력하기.
+select no, name, salary, rank() over(order by salary) 급여오름차순, rank() over(order by salary desc) 급여내림차순
+from professor
+order by 4
+
+-- 문제1 : emp 테이블에서 30번 부서 직원들의 사원번호, 이름, 급여, 급여적은 순위 출력하기
+select deptno, empno, ename, salary, rank() over(order by salary)
+from emp
+having deptno=30
+order by 4
+
+-- 문제 2 : score테이블에서 학생들의 이름과 총점, 총점이 많은 순위를 출력하기.
+select studno, (kor+eng+math) 총점, rank() over(order by (kor+eng+math) desc) 
+from score
+
+
+
+-- 누계 계산 함수 :  sum() over()
+
+-- 교수의 이름, 급여, 보너스, 급여중간합계 출력하기 (급여 많은 순)
+select name, salary, bonus, sum(salary) over(order by salary desc) 급여소계
+from professor
+
+-- 교수의 이름, 급여, 보너스, 급여중간합계 출력하기 (급여적은  순)
+select name, salary, bonus, sum(salary) over(order by salary ) 급여소계
+from professor
+
+
+-- ************************************************여러 테이블 활용**************************************************
+
+/*
+	Join : 여러 개의 테이블을 연결하여 사용하기.
+*/
+
+-- cross join => m*n 개의 레코드가 생성됨. 사용시 주의해야 함.
+select count(*) from emp -- => 14개 레코드
+select count(*) from dept -- => 5개 레코드
+-- emp 테이블과 dept 테이블 join 하기
+select * from emp, dept -- => 14*5=70개 레코드 
+								-- => 2개의 테이블의 컬럼의 수 합
+								--		2개의 테이블의 레코드의 수의 곱
+								
+						
+								
+-- 등가 조인 : Equi join
+-- 조인컬럼을 이용하여 정확한 데이터만 조회하기.
+-- 조인컬럼이 같은 경우만 조회.
+-- mariaDB 방식임
+
+-- emp 테이블의 사원이름과 dept 테이블의 부서이름을 조회하기(mariaDB 방식)
+select ename, dname from emp, dept
+where emp.deptno = dept.deptno
+-- ANSI 방식
+select ename, dname from emp join dept
+on emp.deptno = dept.deptno
+
+
+-- 학생테이블에서 학번, 이름, score 테이블에서 해당되는 학번의 국어, 영어, 수학점수를 조회하기.
+-- mariaDB 방식
+select s1.studno, name, kor, eng, math 
+from student s1, score s2
+where s1.studno = s2.studno
+-- where student.studno = score.studno
+-- select 문에 있는 studno는 컴퓨터가 어떤 테이블에서 가져와야 하는지 몰라서 에러뜸.-> student.studno 이렇게 명확하게 해줘야함.
+-- ANSI 방식
+select s1.studno, name, kor, eng, math 
+from student s1 join score s2
+on s1.studno = s2.studno
+
+-- 학생테이블에서 학생의 이름, 전공학과번호(major1), 전공학과명 출력하기.
+-- 이름과 학과번호 학생테이블의 컬럼,  전공학과명 major 테이블의 컬럼
+-- mariaDB 방식
+select s1.name, major1, s2.name 
+from student s1, major s2
+where s1.major1 = s2.code 
+-- ANSI 방식
+select s1.name, major1, s2.name 
+from student s1 join major s2
+on s1.major1 = s2.code 
+
+
+-- 학생테이블과 교수테이블을 이용하여 학생이름, 지도교수번호, 지도교수명을 출력하기.
+-- mariaDB 방식
+select s.name, profno, p.name
+from student s, professor p
+where s.profno = p.no
+-- ANSI 방식
+select s.name, profno, p.name
+from student s join professor p
+on s.profno = p.no
+-- 학생테이블과 교수테이블을 이용하여(2학년) 학생이름, 지도교수번호, 지도교수명을 출력하기.
+-- mariaDB
+select s.name, profno, p.name
+from student s, professor p
+where s.profno = p.no and s.grade = 2
+-- ANSI
+select s.name, profno, p.name
+from student s, professor p
+on s.profno = p.no 
+where s.grade = 2
+
+select s.name, profno, p.name
+from student s, professor p
+where s.profno = p.no and s.grade = 2
+
+
+-- 학생의 이름, 학과명, 지도교수명을 출력하기. 
+-- 학생의 이름, major 테이블의 학과명, professor테이블의  지도교수명
+-- mariaDB 방식
+select s.name, m.name, p.name 
+from student s, major m, professor p
+where s.profno = p.no and s.major1=m.code
+-- ANSI 방식
+select s.name, m.name, p.name 
+from student s join major m
+on s.major1 = m.code join professor p
+on s.profno = p.no
+
+
+-- 문제 1 : emp, p_grade 테이블에서 사원이름, 직급, 현재연봉, 해당직급의 연봉하한, 연봉상한을 출력하기. 
+-- 현재 연봉은 (급여*12 + bonus) *10000, 보너스가 없으면 0으로 처리하기.
+select ename 사원이름 , position 직급 , (salary*12 + ifnull(bonus,0))*10000 현재연봉 , s_pay 연봉하한 , e_pay 연봉상한 
+from emp e, p_grade p
+where e.job = p.position
+
+
+-- CafeExam_0325
+1. 장성태 학생의 학번, 이름, 전공1번호, 전공학과이름,학과위치(build) 출력하기
+
+--mariaDB
+select s.studno, s.name, major1, m.name, m.build
+from student s, major m
+where s.major1 = m.code and s.name = '장성태'
+--ANSI
+select s.studno, s.name, major1, m.name, m.build
+from student s join major m
+on s.major1 = m.code and s.name = '장성태'
+
+2. 몸무게 80 kg 이상인 학생의 학번, 이름,체중, 학과이름, 학과위치 출력
+--mariaDB
+select studno, s.name, weight, m.name, m.build
+from student s,major m
+where s.major1 = m.code and s.weight>=80
+--ANSI
+select studno, s.name, weight, m.name, m.build
+from student s join major m
+on s.major1 = m.code
+where s.weight>=80
+
+
+3. 4학년 학생의 이름 학과번호, 학과이름 출력하기
+-- mariaDB
+select s.name, studno, m.name
+from student s , major m
+where s.major1 = m.code and s.grade = 4
+--ANSI
+select s.name, studno, m.name
+from student s join major m
+on s.major1 = m.code
+where s.grade=4
+
+
+4. 성이 김씨인 학생들의 이름, 학과이름 학과위치 출력하기
+--mariaDB
+select s.name, m.name, build
+from student s, major m
+where s.major1 = m.code and left(s.name,1)='김'
+--ANSI
+select s.name, m.name, build
+from student s join major m
+on s.major1 = m.code
+where left(s.name,1) = '김'
+
+5. 학번과 학생이름, 소속학과이름을 학생 이름순으로 정렬하여 출력
+--mariaDB
+select studno, s.name 학생이름 , m.name 소속학과이름 
+from student s, major m
+where s.major1 = m.code
+order by s.name
+--ANSI
+select studno, s.name 학생이름, m.name 소속학과이름
+from student s join major m
+on s.major1= m.code
+order by s.name
+
+6. 교수별로 교수 이름과 지도 학생 수를 출력하기
+--mariaDB
+select p.name 교수이름, count(*) '지도학생 수'
+from professor p, student s
+where s.profno = p.no
+group by p.name
+
+select p.name 교수이름, count(s.name) '지도학생 수' -- 학생 중 null 인 사람이 있을수도 있으므로,-- 교수별로 교수가 담당하는 학생의 이름을 센다.
+from professor p, student s
+where s.profno = p.no
+group by p.name
+--ANSI
+select p.name 교수이름, count(*) '지도학생 수'
+from professor p join student s
+on s.profno = p.no 
+group by p.name
+ 
+7. 각 학과에 소속된 학과이름, 학생이름 ,교수이름을 출력
+--mariaDB
+select m.name 학과이름, s.name 학생이름, p.name 교수이름
+from major m, student s, professor p
+where m.code=s.major1 and s.profno=p.no
+order by 1
+--ANSI
+select m.name 학과이름, s.name 학생이름, p.name 교수이름
+from major m join student s join professor p
+on m.code=s.major1 and s.profno=p.`no`
+order by 1
+-- union 연산자
+select m.name, concat(s.name, '학생')
+from major m, student s
+where m.code = s.major1
+union
+select m.name, concat(p.name,'교수')
+from major m, professor p
+where m.code=p.deptno
+order by 1
+
+8. 학생의 생일을 birthday를 기준으로 학생의 생일별 인원수를  다음 결과가 나오도록 sql 구문 작성하기
+
+-- 풀이
+select  count(*) 합계,
+sum(if(month(birthday)=1,1,0)) AS "1월", 
+sum(if(month(birthday)=2,1,0)) AS "2월", 
+sum(if(month(birthday)=3,1,0)) AS "3월",
+sum(if(month(birthday)=4,1,0)) AS "4월",
+sum(if(month(birthday)=5,1,0)) AS "5월",
+sum(if(month(birthday)=6,1,0)) AS "6월",
+sum(if(month(birthday)=7,1,0)) AS "7월",
+sum(if(month(birthday)=8,1,0)) AS "8월",
+sum(if(month(birthday)=9,1,0)) AS "9월",
+sum(if(month(birthday)=10,1,0)) AS "10월",
+sum(if(month(birthday)=11,1,0)) AS "11월",
+sum(if(month(birthday)=12,1,0)) AS "12월"
+from student
+
+
+-- ********************************************190326 정리*******************************************************
+
+	group 함수
+	-min, max : 최소/최대 값
+	-stddev : 표준편차
+	-variance : 분산
+	
+	-rank() over(정렬기준) : 순위 지정 함수. 정렬 기준으로 순위 지정
+	-sum() over(정렬기준) : 누계 지정 함수. 정렬 기준으로 누계 지정
+ 	
+ 	join 함수
+ 	- cross 조인 : 조인컬럼이 없음. 두개 테이블의 레코드의 개수(n*m 개) 사용하지 말 것
+ 	<Inner 조인> : 조인컬럼의 값이 존재하는 경우만 조회함.
+ 	- Equi(등가)  조인 : 등가조인. 
+	 							조인컬럼의 값이 같은 경우 조인의 기준으로 함.
+	 							
+	
+	<Outer 조인> : 조인컬럼의 값이 존재하지 않아도 조회됨.
+								 
+-- ****************************************************************************************************
+
+-- self 조인 : 두 개의 테이블이 동일한 테이블임.
+-- 				반드시 별명을 지정해야 함. 
+
+-- 사원 테이블에서 사원번호, 사원명, 상사의 이름을 출력하기 
+select e1.empno 사원번호, e1.ename 사원명 , e2.ename 상사이름
+from emp e1, emp e2
+where e1.mgr = e2.empno
+
+-- 문제1 ; major 테이블에서 학과코드와 학과명, 상위학과코드, 상위학과명 출력하기.
+select m1.code 학과코드, m1.name 학과명 , m2.code 상위학과코드 , m2.name 상위학과명
+from major m1, major m2
+where m1.part=m2.code
+
+-- 문제2 : 교수테이블에서 교수번호, 이름, 입사일, 자신과 입사일이 같은 사람의 인원수를 출력하기. 입사일이 빠른 순으로 정렬하기.
+select p1.no, p1.name, p1.hiredate, count(p2.hiredate) 
+from professor p1, professor p2 
+where p1.hiredate=p2.hiredate and p1.name!=p2.name
+group by p1.name
+order by p1.hiredate	
+
+
+-- 비등가 조인 : 조인컬럼의 비교가 범위 지정하는 방식으로 조인함.(완전 같은 값이 아닌 범위에 해당하는 값)
+
+-- 고객 테이블
+select * from guest
+-- 상품 테이블
+select * from pointitem
+
+-- 고객 테이블과 상품테이블을 조인하여, 고객의 포인트로 받을 수 있는 아이템 이름을 출력하기.
+select g.name, g.point, p.name
+from guest g, pointitem p
+where g.point between p.spoint and p.epoint
+
+-- 고객 테이블과 상품테이블을 조인하여, 고객의 포인트로 받을 수 있는 아이템 이름을 출력하기. 
+-- 단, 고객이 자신의 포인트보다 낮은 포인트의 상품을 선택할 수 있는 경우
+select g.name, g.point, p.name
+from guest g, pointitem p
+where p.spoint<=g.point 
+
+
+-- 문제1 : 고객 테이블과 상품테이블을 조인하여, 고객의 포인트로 받을 수 있는 아이템 이름을 출력하기. 
+-- 단, 고객이 자신의 포인트보다 낮은 포인트의 상품을 선택할 수 있을 때
+-- 고객의 이름, 고객포인트, 가져갈 수 있는 상품의 개수를 조회하기. 2개 이상 가져갈 수 있는 사람만 출력하기.
+select g.name, g.point, count(p.name)
+from guest g, pointitem p
+where p.spoint <= g.point
+group by g.name
+having count(p.name)>=2
+
+-- 문제2 :  학생의 학번, 이름, 국어, 영어, 수학, 점수합, 점수평균을 출력하기.
+select s1.studno, s1.name, s2.kor, s2.eng, s2.math, s2.kor+s2.eng+s2.math 점수합, round((s2.kor+s2.eng+s2.math)/3) 점수평균
+from student s1, score s2
+where s1.studno = s2.studno
+
+-- 문제3 : 학생의 학번, 이름, 국어, 영어, 수학, 점수합, 점수평균, 학점을 출력하기. 학점은 평균기준으로 한다.
+-- 학점의 테이블은 scorebase 테이블에서 조회하기
+select s1.studno, s1.name, s2.kor, s2.eng, s2.math, s2.kor+s2.eng+s2.math 점수합, (s2.kor+s2.eng+s2.math)/3 점수평균, s3.grade 학점
+from student s1, score s2, scorebase s3
+where  s1.studno=s2.studno and round((s2.kor+s2.eng+s2.math)/3) between min_point and max_point
+order by 학점
+
+-- 문제 4 : 문제 3에서 각 학점별 인원수를 출력하기.	
+select s3.grade 학점, count(*) '학점별 인원수'
+from student s1, score s2, scorebase s3
+where  s1.studno=s2.studno and round((s2.kor+s2.eng+s2.math)/3) between min_point and max_point
+group by 학점
+order by 학점	
+
+
+-- 문제 5 : 고객은 자신의 포인트보다 작은 포인트의 상품을 수령할 수 있다고 할 때, 무선키보드를 가질 수 있는 고객의 이름, 포인트, 상품명,
+-- 상품시작포인트, 상품종료포인트 출력하기.
+select g.name 고객이름, g.point 고객포인트 , p.name 상품명, p.spoint 상품시작포인트, p.epoint 상품종료포인트
+from guest g, pointitem p
+where p.name = '무선키보드' and p.spoint <= g.point
+
+
+
 
