@@ -185,3 +185,193 @@ where m.code=p.deptno and p.hiredate>(select hiredate from professor where name 
 select p.name, p.hiredate, m.name
 from professor p join major m
 on m.code=p.deptno and p.hiredate>(select hiredate from professor where name = '송승환')
+
+
+
+-- ***********************************************************190327 정리******************************************************************
+/*
+	subquery  : where 조건문에 사용되는 내부 select 구문
+		단일행subquery : 서브쿼리의 결과가 한개의 레코드인 경우
+			사용가능 연산자 : 관계연산자 사용 가능
+		복수행subquery : 서브쿼리의 결과가 여러개의 행인 경우
+			사용가능 연산자 :  in, any, all(any,all은 안쓰는게 나음)
+									in : or 연산자 동일.
+									any : 서브쿼리의 결과중 한개라도 조건을 만족하는 경우
+									all : 서브쿼리의 모든 결과가 조건을 만족하는 경우
+	
+*/
+
+
+-- 사원테이블에서 사원직급의 최대급여보다 급여가 많은 사람의 이름, 직급, 급여 출력하기.
+select ename, job, salary
+from emp
+where salary > ALL(select salary from emp where job='사원') 
+-- 위에보다 아래 쓰는게 더 나음
+select ename, job, salary
+from emp
+where salary >(select max(salary) from emp where job='사원') 
+
+
+-- 사원테이블에서 사원직급의 최소급여보다 급여가 많은 사람의 이름, 직급, 급여 출력하기.
+select ename, job, salary
+from emp
+where salary > ANY(select salary from emp where job='사원') 
+-- 위에보다 아래 쓰는게 더 나음
+select ename, job, salary
+from emp
+where salary >(select min(salary) from emp where job='사원') 
+
+
+
+-- 문제 1 : 4학년 학생의 체중보다 작은 학생의 이름, 몸무게, 학년을 출력하기.
+select name, weight, grade
+from student
+where weight<(select min(weight) from student where grade=4)
+
+select name, weight, grade
+from student
+where weight<all(select weight from student where grade=4)
+-- 문제 2 : 4학년 학생들 중 키가 작은 학생보다 키가 큰 학생의 이름, 키, 학년을 출력하기.
+select name, height, grade
+from student
+where height>(select min(height) from student where grade=4)
+
+select name, height, grade
+from student
+where height>any(select height from student where grade=4)
+
+
+/*
+	다중 컬럼 subquery : 비교 대상이 되는 컬럼이 두개 이상
+								any, all 연산자 사용 불가함.
+								in 만 사용할 수 있다.
+*/	
+
+-- 학년 별로 최대키를 가진 학생들의 학년과 이름, 키를 출력하기
+select grade, name, height
+from student
+where height in (select max(height) from student group by grade)
+
+
+-- 1학년의 최대키를 가진 학생의 학년, 이름, 키를 출력하기.
+select grade, name, height
+from student 
+where height in (select max(height) from student where grade=1) and grade=1
+
+
+-- 학년별 최대키 구하기.
+select grade, max(height) 
+from student
+group by grade
+
+-- 학년 별로 최대키를 가진 학생들의 학년과 이름, 키를 출력하기
+select grade, name, height
+from student
+where (grade,height) in (select grade, max(height) from student group by grade)
+order by grade
+
+
+-- 문제 1 : 학과별로 입사일이 가장 오래된 교수의 교수번호, 이름, 학과명 출력하기.
+select p.no, p.name, m.name
+from professor p, major m
+where p.deptno=m.code
+and (deptno,hiredate) in(select deptno, min(hiredate) from professor group by deptno)
+
+-- 문제 2 : 직급별로 해당 직급의 최대급여를 받는 직원의 이름, 직급, 급여 출력하기.
+select ename, job, salary
+from emp e
+where (e.job,e.salary) in (select job, max(salary) from emp group by job)
+order by salary desc
+
+
+/*
+	상호 연관 subquery : 외부 query가 내부 query에 영향을 주는 subquery
+								성능이 안좋다.
+*/
+
+-- 자신의 직급의 평균급여 이상을 받는 직원의 이름, 직급, 현재 급여를 출력하기.
+select ename, job, salary
+from emp e1
+where salary >= (select avg(salary) from emp e2 where e2.job= e1.job) 
+
+
+-- 문제 : 교수 자신의 직급의 평균급여보다 적은 급여를 받는 교수의 이름, 직급, 급여, 학과명 출력하기.
+select p.name 이름, p.position 직급, p.salary 급여, m.name 학과명
+from professor p, major m
+where p.deptno=m.code
+and p.salary < (select avg(salary) from professor p2 where p2.position=p.position)
+
+
+/*
+	스칼라 subquery : 컬럼절에 사용되어지는 subquery
+*/
+
+-- 사원의 사원번호, 이름, 부서명 출력하기
+select e.empno, e.ename, d.dname 
+from emp e, dept d
+where e.deptno=d.deptno
+
+select empno, ename, (select dname from dept d where d.deptno=e.deptno)
+from emp e 
+
+
+
+/*
+	having 절에서 사용되는 subquery
+*/
+
+-- 201번 학과의 교수의 인원수보다 큰 인원수를 가지고 있는 부서의 부서코드, 부서명, 인원수를 출력하기.
+-- having 절 서브쿼리
+select p.deptno, m.name, count(*)
+from professor p, major m
+where p.deptno=m.code
+group by deptno
+having count(*) > (select count(*) from professor  where deptno=201)
+
+-- 스칼라 방식
+select p.deptno, (select name from major m where m.code=p.deptno), count(*)
+from professor p
+group by deptno
+having count(*) >  (select count(*) from professor  where deptno=201)
+
+
+/*
+	서브쿼리 사용 위치
+	- where 조건문
+	- 컬럼 부분
+	- having 조건문
+	- from 구문 => inline view
+	
+*/
+
+
+-- 학년의 평균 몸무게가 70보다 큰 학년과 평균 몸무게 출력하기.
+select grade, avg(weight) from student
+group by grade
+having avg(weight) > 70 
+-- inline view
+select * from 
+(select grade, avg(weight) avg from student group by grade) a
+where avg > 70
+
+-- 문제 1 : 전공테이블에서 공과대학에 속한 (학부아니고 학과)학과코드와 학과이름을 출력하기.
+select m.code, m.name
+from major m, major m2
+where m.part=m2.code and m2.part=10
+
+-- subquery
+select code, name from major
+where part in (select code from major where part=10)
+
+-- 문제 2 : 학생테이블에서 학생 중 전공1학과가 101 학과의 평균 몸무게보다 몸무게가 많은 학생의 학번, 이름, 몸무게, 학과명 출력하기.
+select avg(weight) from student where major1=101
+
+select s.studno, s.name, s.weight, m.name
+from student s, major m
+where s.major1=m.code 
+and s.weight > (select avg(weight) from student where major1=101)
+
+select s.studno, s.name, s.weight, (select m.name from major m where m.code = s.major1)
+from student s
+where s.weight > (select avg(weight) from student where major1=101)
+
