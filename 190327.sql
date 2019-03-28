@@ -260,7 +260,20 @@ alter table student4 add (score int)
 -- 1. 사원 테이블에서 부서별 평균연봉 중 가장 작은 평균 연봉보다 적게 받는 직원의
 --  직원명,부서명, 연봉 출력하기. 
 --  연봉은 급여*12+bonus. 보너스가 없는 경우는 0으로 처리한다.
+--방법 1
+select ename, d.dname, salary*12+ifnull(bonus,0)
+from emp e, dept d
+where e.deptno=d.deptno
+and (salary*12+ifnull(bonus,0)) < all
+(select avg(salary*12+ifnull(bonus,0)) from emp group by deptno)
 
+--방법2
+select ename, d.dname, salary*12+ifnull(bonus,0)
+from emp e, dept d
+where e.deptno=d.deptno
+and (salary*12+ifnull(bonus,0)) < 
+ (select min(avg) from 
+ (select avg(salary*12+ifnull(bonus,0)) avg from emp group by deptno) a)
 
 -- 2. 이상미 교수와 같은 입사일에 입사한 교수 중 이영택교수 보다 
 --    월급을 적게받는 교수의 이름, 급여, 입사일 출력하기
@@ -268,6 +281,7 @@ select name, salary, hiredate
 from professor
 where salary < (select salary from professor where name = '이영택')
 and hiredate in (select hiredate from professor where name='이상미')
+
 
 -- 3. 101번 학과 학생들의 평균 몸무게 보다  
 --   몸무게가 적은 학생의 학번과,이름과, 학과번호, 몸무게를 출력하기
@@ -291,7 +305,8 @@ and height > (select height from student where studno=950115)
 -- 6. 컴퓨터정보학부에 소속된 모든 학생의 학번,이름, 학과번호, 학과명 출력하기
 select s.studno, s.name, s.major1, m.name
 from student s, major m
-where m.name = '컴퓨터정보학부'
+where s.major1=m.code 
+and m.part = (select code from major where name=;
 
 -- 7. 학생 중에서 생년월일이 가장 빠른 학생의 학번, 이름, 생년월일을 출력하기
 select studno, name, birthday
@@ -299,15 +314,358 @@ from student
 where birthday = (select min(birthday) from student)
 
 -- 8. 학년별로 평균체중이 가장 적은 학년의 학년과 평균 몸무게를 출력
-
+-- 방법1
 select * from (select grade, avg(weight) avg from student group by grade) a
 group by grade
 having avg<= all (select avg(weight) from student group by grade)
 
+-- 방법2
+select grade, avg(weight)
+from student 
+group by grade
+having avg(weight) = (select min(avg) from
+(select avg(weight) avg from student group by grade) a)
+
 -- 9. 교수 테이블에서 평균 연봉보다 많이 받는 
 --    교수들의 교수번호 이름, 연봉, 학과명을 연봉이 높은 순으로 정렬하여 출력하기. 
 --    보너스가 없으면 0으로 계산함.  단 연봉은 (급여+보너스) *12 한 값이다.
-select p.name, (p.salary*12+ifnull(p.bonus,0)), m.name
+select p.name, ((p.salary+ifnull(bonus,0))*12), m.name
 from professor p , major m
 where p.deptno=m.code
-and (salary*12+ifnull(bonus,0))>(select avg(salary*12+ifnull(bonus,0)) from professor )
+and (p.salary+ifnull(bonus,0))*12 >(select avg(p.salary+ifnull(bonus,0))*12 from professor )
+order by 2 desc
+
+
+-- ************************************************190328 정리****************************************************************
+
+subquery : 상호연관 서브쿼리 => 외부쿼리의 값이 내부쿼리에 영향
+	- 스칼라 서브쿼리 : 컬럼부분에 사용되는 서브쿼리(조인 대신 사용하고자 할 때) 
+	- inline view : from 절에서 사용되는 서브쿼리, 반드시 alias를 주어야 한다.
+	- having 절 서브쿼리
+	- where 절 서브쿼리
+	
+	
+DDL : Data Definition Language (데이터 정의어)
+		=> 객체(table, view, index, user, ...)의 생성(create), 수정(alter), 객체 삭제(drop), 내용삭제(truncate)
+		- create : 객체를 생성
+		- alter : 객체의 구조를 변경 
+		- drop : 객체를 제거
+		- truncate : 객체는 그대로, 안의 내용을 제거함.  
+	
+	=> commit과 rollback 의 대상이 아님.
+	
+	
+--  *****************************************************************************************************
+
+
+/*
+	DML : Data Manipulation Language(데이터 조작어)
+			CRUD 
+			- C : 데이터 생성 => insert
+			- R : 데이터 읽기 => select
+			- U : 데이터 변경 => update
+			- D : 데이터 삭제 => delete
+		=> commit(정상 , 그대로 실행) 과 rollback( 오류발생, 모든 것 취소) 이 가능하다.(transaction 트랜잭션)				
+		- transaction : all of nothing
+*/	
+
+/*
+
+-- insert : 데이터 추가
+		insert into 테이블명 [(컬럼명1, 컬럼명2,....)] values (값1, 값2.....)
+*/	
+
+select * from dept
+
+-- deptno : 90, dname : '특판팀', loc : '부산' 값을 집어넣기.
+insert into dept (deptno, dname, loc) values (90, '특판팀', '부산')
+
+-- deptno : 91 dname : '특판1팀' loc : '대구' 값을 집어넣기. 
+-- 앞에 컬럼명 안쓰려면 반드시 모든 컬럼 수와 순서에 맞는 values 값을 집어넣어야 한다. 
+insert into dept values (91, '특판1팀', '대구')
+
+-- deptno : 92, dname : '특판2팀' 값을 집어넣기.
+insert into dept (deptno, dname) values (92, '특판2팀')
+insert into dept values (93, '특판3팀', ' ')
+
+/*
+	컬럼부분을 기술하지 않고 insert 구문 사용하기
+		1. 모든 컬럼을 테이블의 구조대로 값을 입력해야 한다.
+		2. 모든 컬럼의 순서대로 값이 설정되어야 한다.
+	
+	컬럼부분을 기술하고 insert 구문 사용하기 => 권장사항
+		1. 모든 컬럼에 값을 넣지 않을 때.
+		2. 컬럼의 순서를 모를 때
+		3. DB의 구조변경이 빈번할 때 
+*/
+
+-- 문제 :  교수테이블에 교수번호 : 6001, 이름 :  홍길동, id : hongkd, 급여 : 300, 입사일 : 2019-02-01, 직책 : 초빙교수 레코드를 추가하기.
+insert into professor (no, name, id, salary, hiredate, position) values (6001, '홍길동', 'hongkd', 300, 20190101, '초빙교수')
+
+select * from professor
+
+-- 기존 테이블을 이용하여 데이터 추가하기
+create table major3 as select * from major where 1=2
+-- major 테이블에서 code가 30 이상인 데이터만 major3 테이블에 데이터 추가하기.
+insert into major3 select * from major where code>=200
+select * from major10
+drop table major10
+
+-- 문제1: major10 테이블을 major 테이블과 같은 구조로 생성하기.데이터는 추가하지 않도록 하기.
+-- major10 테이블에 공과대학에 속한 학과 정보만 데이터 추가하기.
+create table major10 
+as select * from major where 1=2
+
+insert into major10 
+select * from major where part in (select code from major where part in (select code from major where name='공과대학'))
+
+-- 문제 2 : student1 테이블의 모든 내용을 제거한 후, 1학년 학생 중 평균키 이상인 학생의 정보만 저장하기.
+truncate table student1
+
+-- 방법1 : 앞에 컬럼 쓰지 않고 넣기 
+insert into student1 
+select *,0 from student  -- 컬럼값 추가하기
+where grade=1
+and height >= (select avg(height) from student)
+
+select * from student1
+desc student
+desc student1
+
+-- 방법2 : 앞에 컬럼 써주는 방법
+insert into student1 (studno,name,id,grade,jumin,major1)
+select studno,name,id,grade,jumin,major1 from student  
+where grade=1
+and height >= (select avg(height) from student)
+
+
+-- 교수테이블에서 홍길동 교수와 같은 조건으로 오늘 입사한 이몽룡 교수를 추가하기. 
+-- 교수번호 : 6002, 이름 :이몽룡, 입사일 : 오늘, id : monglee
+select * from professor
+
+insert into professor (no, name, hiredate, id, position, salary) 
+select 6002, '이몽룡', current_date(), 'monglee' ,position, salary from professor 
+where name='홍길동'
+
+
+/*
+	update : 컬럼의 값을 수정하기.
+	
+	update 테이블명 set 컬럼1=값1, 컬럼2=값2.....
+	[where 조건문] => 없으면 모든 레코드가 수정.
+						=> 있으면 조건문의 결과가 참인 경우만 수정
+						
+*/
+
+-- 사원 중 직급이 사원인 경우 보너스를 10만원 인상하기. 보너스가 없는 경우 0으로 처리하기.
+select ename, job, bonus, ifnull(bonus,0)+10 예상보너스   from emp where job='사원'
+
+update emp set bonus= ifnull(bonus,0)+10
+where job='사원'
+
+-- 이상미교수와 같은 직급의 교수중 급여가 350 미만인 교수의 급여를 10% 인상하기.
+select * from professor where position=(select position from professor where name='이상미')
+
+update professor set salary=salary*1.1
+where position=(select position from professor where name='이상미')
+and salary < 350
+
+
+-- 문제 1 : 교수 테이블에서 보너스가 없는 시간강사의 보너스 값을 조교수의 평균보너스의 50% 로 변경하기.
+select * from professor where position='시간강사'
+
+update professor set bonus =  (select avg*0.5 from (select avg(bonus) avg from professor where position='조교수') a)
+where position='시간강사'
+
+-- 문제 2 : 지도교수가 없는 학생의 지도교수를 이용학생의 지도교수로 변경하기
+select * from student 
+
+update student set profno=(select profno from student where name = '이용')
+where profno is null
+
+-- 문제 3 : 교수 중 홍길동과 같은 직급의 교수의 급여를 101 학과의 평균급여로 변경하기. 단, 소수점이하는 반올림하기.
+select * from professor where position = (select position from professor where name = '홍길동')
+
+update professor set salary=(select avg(salary) from professor where deptno=101)
+where position = (select position from professor where name='홍길동')
+
+
+set autocommit = 0
+rollback
+
+
+
+/*
+	delete :  레코드 삭제
+	
+	delete from 테이블명
+	[where 조건절] => 없으면 모든 레코드 삭제
+						=> 있으면 조건에 맞는 레코드 삭제
+						
+*/
+
+select * from dept 
+
+-- dept 테이블에서 90번이상의 부서를 삭제하기
+delete from dept 
+where deptno>=90
+
+
+set autocommit=0 -- 수동 commit 으로 설정하기.
+rollback -- 버퍼의 내용을 지우고 원래 저장공간에 있던 변경하기 전의 내용을 가져온다.
+commit -- transation 의 종료. 물리적인 저장공간에 최종적으로 저장한다. 
+
+select * from dept
+insert into dept values(90,'특판팀','') => 아직 cmd 창에 안나옴. 저장공간이 변경되지 않았음.
+
+
+/*
+	transation => all or nothing 
+	시작과 끝 : commit 부터 다음 commit까지 
+	rollback은 모든 거래를 취소한다. 
+					(insert, update, delete 가 취소됨)
+	
+	DDL :  DDL 문장이 실행되면 자동 commit 되는 것임. 되돌릴 수 없다. => 오라클
+			 DDL 구문은 취소가 되지 않는다. (create, drop, alter)
+*/
+
+select * from dept
+
+insert into dept values(90,'특판팀','')
+
+drop table test1
+commit
+
+/*
+	<SQL의 종류>
+	
+	DDL : Data Definition Language (데이터 정의 언어)
+		create, alter, drop, truncate
+		
+	DML : Data Manipulation Language (데이터 조작 언어)
+		select, insert, update, delete
+		
+	TCL : Transation Control Language (트랜젝션 제어 언어)
+		commit, rollback
+		
+	DCL : Data Control Language (데이터 제어 언어)
+		grant(승인하다.) :  권한 추가, revoke(철회하다) : 권한 뺏기
+	
+*/
+
+
+
+/*
+	view : 가상테이블.
+			물리적으로 메모리 할당이 없음.
+			테이블인 것처럼 사용됨. => 제약은 있음
+			
+*/
+
+select * from student where grade = 2
+
+-- 2학년 학생의 학번, 이름, id, height, weight 뷰를 생성하기.
+create or replace view v_stu2 -- 뷰를 만들거나 혹시 있으면 수정해라. 
+as select studno, name, id, height, weight from student
+where grade = 2
+
+select * from v_stu2 -- 해당 테이블에서 필요한 정보만 뽑아서 보여주는 것. 물리적인 저장 공간을 갖지 않는다.
+-- 2학년 학생 중에 유진성 학생의 키를 172 로 수정하기. 
+update student set height=172 where name='유진성' and grade=2 -- 업데이트 하는 즉시 뷰에 반영됨. 
+
+-- 문제 1 : 2학년 학생의 학생이름, 지도교수번호, 지도교수이름을 가지는 뷰를 v_stu_prof 로 생성하기.
+create or replace view v_stu_prof
+as select name, profno, (select name from professor p where s.profno=p.no) 
+from student s
+where grade=2
+
+create or replace view v_stu_prof
+as select s.name 학생이름, s.profno 지도교수번호, p.name 지도교수이름
+from student s,professor p 
+where grade=2
+
+select * from v_stu_prof
+
+-- 3학년 학생으로 이루어진 v_stu3 뷰를 생성하기.
+create or replace view v_stu3
+as select * from student where grade=3
+
+select * from v_stu3
+
+-- 3학년 학생의 학번, 이름, 학과명을 출력하기. 
+select studno 학번, s.name 이름, m.name 학과명
+from v_stu3 s, major m
+where s.major1 = m.code
+
+
+-- view 에 insert 가 된다. => 원래 테이블도 같이 수정됨.
+
+insert into v_stu3 (studno, name, id, grade, jumin) values (5001,'홍길동','hongkdd',3,'9001011023456')
+
+select * from student where grade=3
+
+delete from v_stu3 where studno=5001
+
+/*
+   view : 원래 테이블의 내용을 가상의 테이블로 생성.
+   		view 의 CRUD  실행하면, 원래테이블로부터 실행된다.  
+				=> 모든 뷰가 가능한 것은 아님.
+			단순뷰 : 한 개의 테이블로 이루어진 뷰
+				=> CRD 가능하다. 
+   		복합뷰 : 여러개의 테이블로 이루어진 뷰
+   		   => CRD 가 안될 수 있다. 
+*/
+
+
+
+
+-- cafeExam_0328
+-- 1. 교수 테이블에서 홍길동교수와 같은 직급의 교수를 퇴직시키기
+select * from professor where position=(select position from professor where name='홍길동')
+select * from professor
+
+delete from professor 
+where position=(select position from professor where name='홍길동')
+
+-- 2. 교수 테이블에서 교수번호,이름, 이메일, url 컬럼만을 가지는 v_prof
+--        view 를 생성하기.
+create or replace view v_prof
+as select no, name, email, url
+from professor
+
+select * from v_prof
+
+-- 3. 학생테이블 중 1학년 학생의 키정보를 저장하는 v_height1 뷰를 생성하기. 
+--    단 컬럼은 학번, 학년, 키 로 구성된다.
+select * from student where grade=1
+
+create or replace view v_height1
+as select studno, grade, height
+from student 
+where grade=1
+
+select * from v_height1
+
+-- 4. 학생테이블 중 1학년 학생의 몸무게정보를 저장하는 v_weight1 뷰를 생성하기. 
+--    단 컬럼은 학번, 학년, 몸무게 으로 구성된다.
+select * from student where grade=1
+
+create or replace view v_weight1
+as select studno, grade, weight 
+from student 
+where grade=1
+
+select * from v_weight1
+
+-- 5. 학생의 전공별 최대키,최대몸무게를 저장하는 v_stu_max 뷰를 생성하기
+create or replace view v_stu_max
+as select major1, max(height), max(weight)
+from student
+group by major1
+
+select * from v_stu_max
+
+
+
+
+
