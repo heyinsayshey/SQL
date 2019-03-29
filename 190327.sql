@@ -666,6 +666,30 @@ group by major1
 select * from v_stu_max
 
 
+/*
+	view 에는 인덱스를 설정할 수 없다.
+*/
+
+-- ***********************************************190329 정리**********************************************************
+
+/*
+ 	inline view : 이름이 없고, 일회성으로 사용되는 뷰
+ 						select 구문에 from 절에 사용되는 subquery 를 말한다.
+ 						반드시 별명을 설정해야 한다.
+*/
+
+
+-- 학생의 학번, 이름, 학년, 키, 몸무게, 학년의 최대키, 최대 몸무게 출력하기.
+select s.studno, s.name, s.grade, s.height, s.weight, a.xheight, a.xweight 
+from student s, (select grade, max(height) xheight, max(weight) xweight from student group by grade) a
+where s.grade=a.grade
+order by grade
+
+-- 문제 : 교수번호, 이름, 부서코드, 부서명, 자기부서의 평균 급여, 자기 부서의 평균 보너스 출력하기. 보너스 없으면 0
+select p.no, p.name, p.deptno,m.name, round(a.avg_s,2), round(a.avg_b,2)
+from professor p, major m, (select deptno, avg(salary) avg_s, avg(ifnull(bonus,0)) avg_b from professor group by deptno) a
+where p.deptno=a.deptno and p.deptno=m.code
+order by p.deptno
 
 
 
